@@ -1,0 +1,7 @@
+{"timestamp": "2026-06-18T17:16:09.468701", "event": "run_started", "details": {"report_date": "18 June 2026"}}
+{"timestamp": "2026-06-18T17:20:15.854550", "event": "run_started", "details": {"report_date": "18 June 2026"}}
+{"timestamp": "2026-06-18T17:20:28.798512", "event": "approval_decision", "details": {"approved": false, "missing_facts_flag": false, "sensitive_flag": true}}
+{"timestamp": "2026-06-18T17:20:28.800879", "event": "report_rejected", "details": {"reason": "human declined approval"}}
+{"timestamp": "2026-06-18T17:23:08.099541", "event": "run_started", "details": {"report_date": "18 June 2026"}}
+{"timestamp": "2026-06-18T17:23:14.440321", "event": "approval_decision", "details": {"approved": true, "missing_facts_flag": false, "sensitive_flag": true}}
+{"timestamp": "2026-06-18T17:23:14.441720", "event": "report_saved", "details": {"filename": "weekly_report_18_June_2026.txt"}}

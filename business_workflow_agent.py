@@ -3,6 +3,7 @@ from langchain_groq import ChatGroq
 from dotenv import load_dotenv
 import pandas as pd
 import datetime
+import json
 import os
 
 load_dotenv()
@@ -11,6 +12,16 @@ llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     api_key=os.getenv("GROQ_API_KEY")
 )
+
+# ── Audit Log ──────────────────────────────────────
+def write_audit_log(event, details):
+    entry = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "event": event,
+        "details": details
+    }
+    with open("audit_log.json", "a") as f:
+        f.write(json.dumps(entry) + "\n")
 
 # ── Load Data ──────────────────────────────────────
 orders = pd.read_csv("orders.csv")
@@ -27,8 +38,8 @@ overdue_clients = clients[clients["last_contact_date"] < "2026-03-01"]["client_n
 
 today = datetime.date.today().strftime("%d %B %Y")
 
-agrawal_data = f"""
-AGRAWAL METAL WORKS — WEEKLY DATA
+client_data = f"""
+CLIENT A MANUFACTURING — WEEKLY DATA
 Report Date: {today}
 
 REVENUE:
@@ -44,9 +55,9 @@ CLIENTS NOT CONTACTED RECENTLY:
 {', '.join(overdue_clients) if overdue_clients else 'All clients contacted'}
 
 PRODUCTION CONTEXT:
-Factory: Agrawal Metal Works, Bhiwadi
-Product: Copper and Brass
-Capacity: 3,300 tons/month
+Factory: Client A Manufacturing, Sample City
+Product: Metal Components
+Capacity: 1,000 units/month
 """
 
 # ── State ──────────────────────────────────────────
@@ -57,12 +68,15 @@ class ReportState(TypedDict):
     ops_analysis: str
     sales_analysis: str
     final_report: str
+    missing_facts_flag: bool
+    sensitive_flag: bool
+    approved: bool
 
 # ── Nodes ──────────────────────────────────────────
 def ops_node(state: ReportState) -> ReportState:
     print("🔧 Operations Agent analyzing...")
-    response = llm.invoke(f"""You are an operations analyst for Indian metal manufacturing.
-    
+    response = llm.invoke(f"""You are an operations analyst for Indian manufacturing.
+
 Analyze this data and give 3 operational insights with actions:
 {state['data']}
 
@@ -83,7 +97,7 @@ Keep under 120 words. Be specific with client names and rupee amounts.""")
 
 def report_node(state: ReportState) -> ReportState:
     print("📝 Report Agent writing executive summary...")
-    response = llm.invoke(f"""You are an executive report writer for factory owners in Rajasthan.
+    response = llm.invoke(f"""You are an executive report writer for factory owners.
 
 Operations Analysis:
 {state['ops_analysis']}
@@ -94,7 +108,7 @@ Sales Analysis:
 Write this exact format:
 
 ═══════════════════════════════════
-AGRAWAL METAL WORKS
+CLIENT A MANUFACTURING
 WEEKLY EXECUTIVE REPORT — {today}
 ═══════════════════════════════════
 
@@ -115,38 +129,78 @@ Keep under 200 words.""")
     state["final_report"] = response.content
     return state
 
+def approval_node(state: ReportState) -> ReportState:
+    print("\n🔎 Checking report before approval...")
+
+    state["missing_facts_flag"] = (
+        state["ops_analysis"].strip() == "" or
+        state["sales_analysis"].strip() == ""
+    )
+
+    sensitive_keywords = ["₹", "Client", "buyer", "Buyer"]
+    state["sensitive_flag"] = any(word in state["final_report"] for word in sensitive_keywords)
+
+    print("\n--- DRAFT REPORT ---")
+    print(state["final_report"])
+    print("---------------------")
+    print(f"Missing-facts flag: {state['missing_facts_flag']}")
+    print(f"Sensitive-data flag: {state['sensitive_flag']}")
+
+    answer = input("\nApprove this report for saving? (yes/no): ").strip().lower()
+    state["approved"] = (answer == "yes")
+
+    write_audit_log(
+        event="approval_decision",
+        details={
+            "approved": state["approved"],
+            "missing_facts_flag": state["missing_facts_flag"],
+            "sensitive_flag": state["sensitive_flag"]
+        }
+    )
+    return state
+
 # ── Build Graph ────────────────────────────────────
 graph = StateGraph(ReportState)
 
 graph.add_node("ops_agent", ops_node)
 graph.add_node("sales_agent", sales_node)
 graph.add_node("report_agent", report_node)
+graph.add_node("approval_agent", approval_node)
 
 graph.set_entry_point("ops_agent")
 graph.add_edge("ops_agent", "sales_agent")
 graph.add_edge("sales_agent", "report_agent")
-graph.add_edge("report_agent", END)
+graph.add_edge("report_agent", "approval_agent")
+graph.add_edge("approval_agent", END)
 
 app = graph.compile()
 
 # ── Run ────────────────────────────────────────────
 print("\n" + "="*60)
-print("AGRAWAL METAL WORKS — AUTONOMOUS WEEKLY REPORT")
+print("CLIENT A MANUFACTURING — GOVERNED WEEKLY REPORT AGENT")
 print("="*60 + "\n")
 
+write_audit_log(event="run_started", details={"report_date": today})
+
 result = app.invoke({
-    "data": agrawal_data,
+    "data": client_data,
     "ops_analysis": "",
     "sales_analysis": "",
-    "final_report": ""
+    "final_report": "",
+    "missing_facts_flag": False,
+    "sensitive_flag": False,
+    "approved": False
 })
 
 print("\n")
 print(result["final_report"])
 
-# Save to file
-filename = f"agrawal_report_{today.replace(' ', '_')}.txt"
-with open(filename, "w") as f:
-    f.write(result["final_report"])
-
-print(f"\n✅ Report saved to {filename}")
+if result["approved"]:
+    filename = f"weekly_report_{today.replace(' ', '_')}.txt"
+    with open(filename, "w") as f:
+        f.write(result["final_report"])
+    print(f"\n✅ Report approved and saved to {filename}")
+    write_audit_log(event="report_saved", details={"filename": filename})
+else:
+    print("\n🚫 Report was not approved — nothing was saved.")
+    write_audit_log(event="report_rejected", details={"reason": "human declined approval"})
