@@ -5,3 +5,8 @@
 {"timestamp": "2026-06-18T17:23:08.099541", "event": "run_started", "details": {"report_date": "18 June 2026"}}
 {"timestamp": "2026-06-18T17:23:14.440321", "event": "approval_decision", "details": {"approved": true, "missing_facts_flag": false, "sensitive_flag": true}}
 {"timestamp": "2026-06-18T17:23:14.441720", "event": "report_saved", "details": {"filename": "weekly_report_18_June_2026.txt"}}
+{"timestamp": "2026-06-21T15:11:21.299118", "event": "run_started", "details": {"report_date": "21 June 2026", "thread_id": "3e4f391c"}}
+{"timestamp": "2026-06-21T15:11:24.028823", "event": "run_paused_before_approval", "details": {"thread_id": "3e4f391c"}}
+{"timestamp": "2026-06-21T15:54:56.213988", "event": "run_resumed", "details": {"thread_id": "3e4f391c"}}
+{"timestamp": "2026-06-21T15:55:00.680719", "event": "approval_decision", "details": {"approved": true, "missing_facts_flag": false, "sensitive_flag": true}}
+{"timestamp": "2026-06-21T15:55:00.693839", "event": "report_saved", "details": {"filename": "weekly_report_21_June_2026.txt", "thread_id": "3e4f391c"}}
